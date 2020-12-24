@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+  <title>Happiness World Report: From 2015 to 2019</title>
+</head>
+
+<style>
+body {
+  font-family: Calibri, Candara, Segoe, Segoe UI, Optima, Arial, sans-serif;
+  font-size: 10px;
+}
+ 
+#content {
+  display: inline-block;
+  position: relative;
+  height: 90vh;
+  width: -webkit-calc(100vw - 200px);
+  width:    -moz-calc(100vw - 200px);
+  width:         calc(100vw - 200px);
+  text-align: center;
+  border-color: black;
+  border-width: 1px;
+  border-style: solid;
+  overflow:scroll;
+}
+
+#navbar {
+  background-color: rgb(51,62,72);
+  color: white;
+  width: 168px; 
+  height: 90vh;
+  padding-top: 10px;
+  padding-right: 4px;
+  padding-left: 4px;
+  text-align: left;
+}
+
+.table {
+  position: relative;
+}
+
+.dropdown {
+  width:100%;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  color:  white;
+}
+
+.selection {
+  color: rgb(51,62,72);
+  width: 100%;
+  background-color: white;
+}
+
+svg {
+  display: inline-block;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: scroll;
+}
+
+line {
+  stroke: #ccc;
+}
+text {
+  text-anchor: middle;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+  fill: #666;
+  font-size: 16px;
+}
+
+.tooltip {
+    position: absolute;
+    text-align: center;
+    padding: 6px;
+    font: 12px sans-serif;
+    background: white;
+    border-width: 1px;
+    border-style: solid;
+    border-color: black;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+</style>
+
+<body>
+  <div id="navbar" style="float:left">
+    <div class="dropdown" id="dropdown_year">Year:<br/></div>
+  </div>
+  <div id="content" style="float:right">
+    <div class="map" id="map"></div>
+    <div class="table" id="ranking" style="float:left">
+      <h3>Ranking:</h3>
+    </div>
+    <div class="table" id="summaryForSelectedCountry" style="float:left">
+        <h3>Summary for selected country:</h3>
+    </div>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.10.0/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-queue/3.0.7/d3-queue.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.0/topojson.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v2.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v0.3.min.js"></script>
+
+  <script type="module">
+  // Define useful function to keep only data corresponding to selected year in dropdown
+  function filterYear(data, selectedYear) {
+    return data.filter(
+        function(d){ return d.year === selectedYear }
+    );
+  }   
+
+  // Define colour palette
+  // Max ranking = 158
+  var max_ranking = 158
+  var min_ranking = 1 
+  function colour(ranking) {
+    return d3.interpolateRdYlGn(1 - (ranking - min_ranking) / (max_ranking - min_ranking))
+  }
+
+  function drawMap(data, selectedYear) {
+      // Adding a world map
+    var width = 900, height = 600;
+    var title = d3.select("#map")
+                  .append("h1")
+                  .attr("id", "title")
+                  .text("World happiness data for " + selectedYear)
+    var svg = d3.select("#map")
+          .append( "svg" )
+          .attr( "width", width )
+          .attr( "height", height );
+    var projection = d3.geoEquirectangular()
+        .scale(170)
+        .translate([width / 2, height / 2]);
+    var geoPath = d3.geoPath()
+        .projection(projection);
+    d3.queue()
+        .defer(d3.json, "world-topo.json")
+        .await(ready);
+    function ready(error, countries){
+        svg.append("g")
+          .selectAll("path")
+          .data(topojson.feature(countries, countries.objects.countries).features)
+          .enter()
+          .append("path")
+          .attr("d", geoPath)
+          .attr("class","countries")
+          .attr("id", function(d) { return d.properties.admin });  
+
+          // Linking maps to happiness data
+          d3.selectAll(".countries").each(function(d) {
+            var currentCountryName = d3.select(this).attr('id')
+            var data_country = data.filter(function(d) {
+              return d.Country === currentCountryName
+            })
+            if (data_country.length > 0) {
+              d["Country"] = data_country[0]["Country"]
+              d["happiness_rank"] = data_country[0]["happiness_rank"]
+              d["happiness_score"] = data_country[0]["happiness_score"]
+              d["GPD_per_capita"] = data_country[0]["GPD_per_capita"]
+              d["Family"] = data_country[0]["Family"]
+              d["life_expectancy"] = data_country[0]["life_expectancy"]
+              d["Freedom"] = data_country[0]["Freedom"]
+              d["trust_gov_corruption"] = data_country[0]["trust_gov_corruption"]
+              d["Generosity"] = data_country[0]["Generosity"]
+              // Colour map based on colour ranking
+              d3.select(this).attr('fill', function(d) { return colour(d.happiness_rank) })
+              //d3.select(this).append("text").text(function(d) { return d.happiness_rank }).attr("z-index", 100)
+
+              // to do: text on top of map
+              // when changing filter, update graph
+              // add tables
+              // add tooltip
+              // onclick (map or table), filter other graphs
+
+            }
+          });
+      }
+    }
+
+  d3.csv("happiness_ranking_by_year.csv", function(error, data) {
+    // Read data
+    data.forEach(function(d) {
+        // By default, d3 read csv fields as strings
+        // Converting fields as numbers when needed
+        d["Economy (GDP per Capita)"] = +d["Economy (GDP per Capita)"]
+        d.Family = +d.Family
+        d.Freedom = +d.Freedom
+        d.Generosity = +d.Generosity
+        d["Happiness Rank"] = +d["Happiness Rank"]
+        d["Happiness Score"] = +d["Happiness Score"]
+        d["Health (Life Expectancy)"] = +d["Health (Life Expectancy)"]
+        d["Trust (Government Corruption)"] = +d["Trust (Government Corruption)"]
+        d.year = +d.year
+    });
+    
+    // Creating the "year" filter dropdown
+    var yearDropdown = d3.select("#dropdown_year")
+                          .append("select")
+                          .attr("class", "selection")
+                          .attr("id", "year_filter")
+    // Getting distinct years
+    var uniqueYears = data.filter((value, index, self) => { return self.indexOf(self.find(element => element.year === value.year)) === index });
+    // Filling it with distinct years
+    var yearOptions = yearDropdown.selectAll("option")
+                                  .data(uniqueYears)
+                                  .enter()
+                                  .append("option")
+                                  .text(function(d) { return d.year })    
+                                  .attr("value", function (d) { return d.year })    
+
+  // Getting the filter value
+  var selectedYear = +d3.select("#year_filter").property('value')
+  // We only keep data for selected year in dropdown
+  var data_selected_year = filterYear(data, selectedYear)
+
+  // Draw map
+  drawMap(data_selected_year, selectedYear)
+
+  d3.select("#year_filter").on('change', function() {
+      selectedYear = +d3.select(this).property('value');
+      data_selected_year = filterYear(data, selectedYear)
+      console.log(selectedYear)
+      d3.select("svg").remove();
+      d3.select("#title").remove();
+      drawMap(data_selected_year, selectedYear)
+  });
+});
+
+
+  </script>
+</body>
+</html>
