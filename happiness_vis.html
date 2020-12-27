@@ -91,7 +91,7 @@ text {
   </div>
   <div id="content" style="float:right">
     <div class="map" id="map"></div>
-    <div class="table" id="ranking" style="float:left">
+    <div class="table" id="happinessRanking" style="float:left">
       <h3>Ranking:</h3>
     </div>
     <div class="table" id="summaryForSelectedCountry" style="float:left">
@@ -148,7 +148,9 @@ text {
           .append("path")
           .attr("d", geoPath)
           .attr("class","countries")
-          .attr("id", function(d) { return d.properties.admin });  
+          .attr("id", function(d) { return d.properties.admin })
+          .exit()
+          .append("text")
 
           // Linking maps to happiness data
           d3.selectAll(".countries").each(function(d) {
@@ -168,10 +170,9 @@ text {
               d["Generosity"] = data_country[0]["Generosity"]
               // Colour map based on colour ranking
               d3.select(this).attr('fill', function(d) { return colour(d.happiness_rank) })
-              //d3.select(this).append("text").text(function(d) { return d.happiness_rank }).attr("z-index", 100)
+    
 
               // to do: text on top of map
-              // when changing filter, update graph
               // add tables
               // add tooltip
               // onclick (map or table), filter other graphs
@@ -181,19 +182,58 @@ text {
       }
     }
 
+    function createTable(data, columns, idToPopulate) {
+      var table = d3.select(idToPopulate)
+              .append("table")
+              .attr("style", "margin-left: 80px"),
+          thead = table.append("thead"),
+          tbody = table.append("tbody");
+
+      // append the header row
+      thead.append("tr")
+          .selectAll("th")
+          .data(columns)
+          .enter()
+          .append("th")
+              .text(function(column) { return column; });
+
+      // create a row for each object in the data
+      var rows = tbody.selectAll('tr')
+        .data(data)
+        .enter()
+        .append('tr')
+
+      // create a cell in each row for each column
+      var cells = rows.selectAll("td")
+          .data(function(row) {
+              return columns.map(function(column) {
+                  return {column: column, value: row[column]};
+              });
+            })
+          .enter()
+          .append("td")
+          .attr("style", "font-family: Courier") // sets the font style
+              .html(function(d) { if (d !== undefined) return d.value; });
+
+      rows.sort(function(a, b) { return d3.ascending(a.happiness_rank, b.happiness_rank);  });
+
+      return table;
+    }
+
   d3.csv("happiness_ranking_by_year.csv", function(error, data) {
     // Read data
     data.forEach(function(d) {
+      console.log(d)
         // By default, d3 read csv fields as strings
         // Converting fields as numbers when needed
-        d["Economy (GDP per Capita)"] = +d["Economy (GDP per Capita)"]
+        d["GDP_per_capita"] = +d["GDP_per_capita"]
         d.Family = +d.Family
         d.Freedom = +d.Freedom
         d.Generosity = +d.Generosity
-        d["Happiness Rank"] = +d["Happiness Rank"]
-        d["Happiness Score"] = +d["Happiness Score"]
-        d["Health (Life Expectancy)"] = +d["Health (Life Expectancy)"]
-        d["Trust (Government Corruption)"] = +d["Trust (Government Corruption)"]
+        d["happiness_rank"] = +d["happiness_rank"]
+        d["happiness_score"] = +d["happiness_score"]
+        d["life_expectancy"] = +d["life_expectancy"]
+        d["trust_gov_corruption"] = +d["trust_gov_corruption"]
         d.year = +d.year
     });
     
@@ -219,14 +259,19 @@ text {
 
   // Draw map
   drawMap(data_selected_year, selectedYear)
+  createTable(data_selected_year, ["Country", "happiness_rank", "happiness_score", "GPD_per_capita", "Family", "Freedom", "Generosity", "life_expectancy", "trust_gov_corruption"], "#happinessRanking")
 
+  // Redraw map and refill tables if year selected changes
   d3.select("#year_filter").on('change', function() {
       selectedYear = +d3.select(this).property('value');
       data_selected_year = filterYear(data, selectedYear)
       console.log(selectedYear)
       d3.select("svg").remove();
       d3.select("#title").remove();
-      drawMap(data_selected_year, selectedYear)
+  
+  drawMap(data_selected_year, selectedYear)
+  createTable(data_selected_year, ["Country", "happiness_rank", "happiness_score", "GPD_per_capita", "Family", "Freedom", "Generosity", "life_expectancy", "trust_gov_corruption"], "#happinessRanking")
+
   });
 });
 
