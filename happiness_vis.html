@@ -268,9 +268,11 @@ text {
       console.log(selectedYear)
       d3.select("svg").remove();
       d3.select("#title").remove();
+
+    d3.select("#happinessRanking").select("table").remove()
   
-  drawMap(data_selected_year, selectedYear)
-  createTable(data_selected_year, ["Country", "happiness_rank", "happiness_score", "GPD_per_capita", "Family", "Freedom", "Generosity", "life_expectancy", "trust_gov_corruption"], "#happinessRanking")
+    drawMap(data_selected_year, selectedYear)
+    createTable(data_selected_year, ["Country", "happiness_rank", "happiness_score", "GPD_per_capita", "Family", "Freedom", "Generosity", "life_expectancy", "trust_gov_corruption"], "#happinessRanking")
 
   });
 });
